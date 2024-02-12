@@ -1,0 +1,48 @@
+version: "3"
+
+services:
+  app:
+    container_name: node_app
+    entrypoint: dockerize -wait tcp://db_server:3306 -timeout 50s node index.js
+    build:
+      context: ./node
+      dockerfile: Dockerfile
+    volumes:
+      - ./node:/usr/src/app
+      - /usr/src/app/node_modules
+    depends_on:
+      - db_server
+    networks:
+      - node_network
+
+  db_server:
+    container_name: mysql_db
+    image: mysql:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: nodedb
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql/data:/var/lib/mysql
+      - ./mysql/config:/etc/mysql/conf.d
+      - /etc/localtime:/etc/localtime:ro
+    command: ["--default-authentication-plugin=caching_sha2_password"]
+    networks:
+      - node_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx_server
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx:/etc/nginx/conf.d
+    networks:
+      - node_network
+    depends_on:
+      - app
+
+networks:
+  node_network:
+    driver: bridge
